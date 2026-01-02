@@ -19,6 +19,7 @@ interface MapContainerProps {
   routeStops: RouteStop[];
   selectedRoute: Route | null;
   onRouteSelect: (route: Route) => void;
+  isDarkMode?: boolean;
 }
 
 export default function MapContainer({
@@ -26,6 +27,7 @@ export default function MapContainer({
   routeStops,
   selectedRoute,
   onRouteSelect,
+  isDarkMode = false,
 }: MapContainerProps) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [L, setL] = useState<any>(null);
@@ -33,6 +35,7 @@ export default function MapContainer({
   const mapRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<any[]>([]);
   const polylinesRef = useRef<any[]>([]);
+  const tileLayerRef = useRef<any>(null);
 
   useEffect(() => {
     const loadLeaflet = async () => {
@@ -68,6 +71,7 @@ export default function MapContainer({
     loadLeaflet();
   }, []);
 
+  // Initialize Map
   useEffect(() => {
     if (!L || !mapRef.current || map) return;
 
@@ -75,11 +79,6 @@ export default function MapContainer({
       const newMap = L.map(mapRef.current, {
         zoomControl: false,
       }).setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], DEFAULT_ZOOM);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-        maxZoom: 19,
-      }).addTo(newMap);
 
       L.control.zoom({ position: "bottomright" }).addTo(newMap);
 
@@ -98,6 +97,32 @@ export default function MapContainer({
       }
     };
   }, [L, map]);
+
+  // Handle Tile Layer Switching
+  useEffect(() => {
+    if (!map || !L) return;
+
+    // Remove existing tile layer if it exists
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+
+    const tileUrl = isDarkMode
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    const attribution = isDarkMode 
+      ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      : '&copy; OpenStreetMap contributors';
+
+    const newTileLayer = L.tileLayer(tileUrl, {
+      attribution: attribution,
+      maxZoom: 19,
+    }).addTo(map);
+
+    tileLayerRef.current = newTileLayer;
+
+  }, [map, L, isDarkMode]);
 
   useEffect(() => {
     if (!map || !L || routes.length === 0) return;

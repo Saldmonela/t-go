@@ -1,41 +1,53 @@
-// app/dashboard/ticket/page.tsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/lib/store";
+import { useAuthStore, useThemeStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase/client";
-import BottomNav from "@/components/BottomNav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AngkotIcon } from "@/components/AngkotIcon";
 import { QRCodeSVG } from "qrcode.react";
-import {
+import { 
+  MoreVertical, 
+  Ticket as TicketIcon, 
+  ArrowLeft, 
+  Download, 
+  Share2, 
+  Info, 
+  Calendar, 
+  Clock, 
+  CreditCard,
   Loader2,
-  Calendar,
-  MapPin,
-  Users,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  ArrowRight,
+  MapPin
 } from "lucide-react";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Ticket } from "@/types/types";
-import { Badge } from "@/components/ui/badge";
+
+// Helper to map DB status to UI status
+const mapStatus = (status: string) => {
+  switch (status) {
+    case 'active': return 'Active';
+    case 'used': return 'Unpaid'; 
+    case 'expired': return 'Expired';
+    default: return status;
+  }
+};
 
 export default function DashboardTicket() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // UI States
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'used' | 'expired'>('all');
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const { isDarkMode } = useThemeStore(); // Default logic
 
   useEffect(() => {
     if (!user) {
       router.push("/login");
       return;
     }
-
     fetchTickets();
   }, [user, router]);
 
@@ -43,16 +55,14 @@ export default function DashboardTicket() {
     try {
       const { data, error } = await supabase
         .from("tickets")
-        .select(
-          `
+        .select(`
           *,
           routes (
             name,
             route_code,
             color
           )
-        `
-        )
+        `)
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
 
@@ -66,253 +76,284 @@ export default function DashboardTicket() {
     }
   };
 
-  const activeTickets = tickets.filter((t) => t.status === "active");
-  const usedTickets = tickets.filter((t) => t.status === "used");
+  const filteredTickets = activeFilter === 'all' 
+    ? tickets 
+    : tickets.filter(t => t.status === activeFilter);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-500 hover:bg-green-600">Aktif</Badge>;
-      case "used":
-        return <Badge variant="secondary">Digunakan</Badge>;
-      case "expired":
-        return <Badge variant="destructive">Kedaluwarsa</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'active': return 'bg-emerald-500';
+      case 'used': return 'bg-blue-500';
+      case 'expired': return 'bg-red-500';
+      default: return 'bg-gray-500';
     }
   };
 
-  const TicketCard = ({ ticket }: { ticket: Ticket }) => (
-    <Card className="overflow-hidden border-2 hover:shadow-lg transition-all duration-200">
-      {/* Header dengan warna rute */}
-      <div
-        className="h-2"
-        style={{ backgroundColor: ticket.routes?.color || "#7B2CBF" }}
-      />
-
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <CardTitle className="text-lg font-bold">
-                {ticket.routes?.route_code}
-              </CardTitle>
-              {getStatusBadge(ticket.status)}
-            </div>
-            <p className="text-sm text-muted-foreground font-medium">
-              {ticket.routes?.name}
-            </p>
-          </div>
-          {ticket.status === "active" ? (
-            <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0" />
-          ) : (
-            <XCircle className="w-6 h-6 text-muted-foreground flex-shrink-0" />
-          )}
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Route Information */}
-        <div className="bg-linear-to-r from-purple-50 to-blue-50 rounded-lg p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                <MapPin className="w-4 h-4 text-green-600" />
-                <span className="line-clamp-1">{ticket.start_point}</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Keberangkatan
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center">
-            <ArrowRight className="w-4 h-4 text-muted-foreground" />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                <MapPin className="w-4 h-4 text-red-600" />
-                <span className="line-clamp-1">{ticket.end_point}</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Tujuan</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Ticket Details */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-            <Users className="w-4 h-4 text-purple-600" />
-            <div>
-              <div className="font-semibold text-gray-800">
-                {ticket.passenger_count}
-              </div>
-              <div className="text-xs text-muted-foreground">Penumpang</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-            <Calendar className="w-4 h-4 text-purple-600" />
-            <div>
-              <div className="font-semibold text-gray-800">
-                {new Date(ticket.travel_date).toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "short",
-                })}
-              </div>
-              <div className="text-xs text-muted-foreground">Tanggal</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Fare */}
-        <div className="bg-linear-to-r from-purple-600 to-blue-600 text-white p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold">Total Pembayaran</span>
-            <span className="text-xl font-bold">
-              Rp {ticket.total_fare.toLocaleString("id-ID")}
-            </span>
-          </div>
-        </div>
-
-        {/* QR Code untuk tiket aktif */}
-        {ticket.status === "active" && (
-          <div className="space-y-3">
-            <div className="text-center">
-              <p className="text-sm font-semibold text-gray-700 mb-2">
-                Scan QR Code untuk naik angkot
-              </p>
-              <div className="bg-white p-4 rounded-lg border-2 border-dashed border-purple-300 flex justify-center">
-                <QRCodeSVG
-                  value={ticket.qr_code}
-                  size={180}
-                  level="H"
-                  includeMargin={false}
-                  bgColor="#FFFFFF"
-                  fgColor="#000000"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-center text-muted-foreground break-all">
-              Kode: {ticket.qr_code.substring(0, 30)}...
-            </p>
-          </div>
-        )}
-
-        {/* Created info */}
-        <div className="flex justify-between items-center text-xs text-muted-foreground border-t pt-3">
-          <span>
-            Dibuat: {new Date(ticket.created_at).toLocaleDateString("id-ID")}
-          </span>
-          <span>
-            {new Date(ticket.created_at).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Memuat tiket...</p>
-        </div>
-      </div>
-    );
+     return (
+       <div className={`min-h-screen flex items-center justify-center transition-colors ${isDarkMode ? 'bg-[#121216]' : 'bg-[#FDFDFF]'}`}>
+         <div className="text-center">
+           <Loader2 className="w-8 h-8 animate-spin text-[#7B2CBF] mx-auto mb-4" />
+           <p className={`font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Memuat tiket...</p>
+         </div>
+       </div>
+     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-purple-50 to-white pb-20">
-      {/* Header */}
-      <header className="bg-linear-to-r from-purple-600 to-blue-600 text-white p-6 shadow-lg">
-        <div className="max-w-md mx-auto">
-          <h1 className="text-2xl font-bold mb-2">Tiket Saya</h1>
-          <p className="text-purple-100 text-sm">
-            Kelola tiket aktif dan lihat riwayat perjalanan
-          </p>
+    <div className={`min-h-full transition-colors duration-500 ${isDarkMode ? 'bg-[#121216]' : 'bg-[#FDFDFF]'}`}>
+      <div className={`p-6 space-y-6 animate-in fade-in duration-500 pb-32`}>
+        <div className="flex items-center justify-between pt-4">
+          <h2 className={`text-2xl font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tiket Saya</h2>
+          <div className={`p-2.5 rounded-xl border shadow-sm transition-colors ${isDarkMode ? 'bg-[#1A1A20] border-gray-800 text-gray-400' : 'bg-white border-gray-100 text-gray-500'}`}>
+             <MoreVertical size={20} />
+          </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-md mx-auto px-4 py-6">
-        <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white p-1 rounded-xl shadow-sm">
-            <TabsTrigger
-              value="active"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all"
+        {/* Filter Tabs */}
+        <div className={`flex gap-6 border-b transition-colors ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+          {[
+            { id: 'all', label: 'Semua' },
+            { id: 'active', label: 'Aktif' },
+            { id: 'used', label: 'Selesai' },
+            { id: 'expired', label: 'Kadaluwarsa' }
+          ].map((tab) => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveFilter(tab.id as any)}
+              className={`pb-3 font-black text-sm transition-all relative ${
+                activeFilter === tab.id 
+                  ? 'text-[#7B2CBF]' 
+                  : (isDarkMode ? 'text-gray-600' : 'text-gray-400')
+              }`}
             >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Aktif ({activeTickets.length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg transition-all"
-            >
-              <Clock className="w-4 h-4 mr-2" />
-              Riwayat ({usedTickets.length})
-            </TabsTrigger>
-          </TabsList>
+              {tab.label}
+              {activeFilter === tab.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#7B2CBF] rounded-t-full"></div>
+              )}
+            </button>
+          ))}
+        </div>
 
-          <TabsContent value="active" className="space-y-4 mt-6">
-            {activeTickets.length === 0 ? (
-              <Card className="text-center py-12 border-dashed">
-                <CardContent>
-                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Ticket className="w-8 h-8 text-purple-600" />
+        <div className="space-y-6">
+          {filteredTickets.length > 0 ? (
+            filteredTickets.map(ticket => (
+              <div 
+                key={ticket.id} 
+                onClick={() => setSelectedTicket(ticket)}
+                className="relative group cursor-pointer active:scale-[0.98] transition-all"
+              >
+                {/* Main Ticket Card */}
+                <div className={`rounded-[35px] overflow-hidden border shadow-sm transition-all group-hover:shadow-lg ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-50'}`}>
+                    {/* Header Strip */}
+                    <div className={`${getStatusColor(ticket.status)} p-5 text-white flex justify-between items-center`}>
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+                            <AngkotIcon className="w-6 h-6" color="white" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black tracking-tight">{ticket.routes?.name}</p>
+                            <p className="text-[9px] font-bold text-white/60 tracking-[2px] uppercase">{ticket.qr_code.substring(0, 12)}...</p>
+                          </div>
+                      </div>
+                      <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md rounded-full text-[9px] font-black tracking-widest uppercase">
+                          {ticket.status}
+                      </div>
+                    </div>
+
+                    <div className="p-6 space-y-5">
+                      <div className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Dari</p>
+                            <p className={`text-sm font-black line-clamp-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{ticket.start_point}</p>
+                          </div>
+                          <div className="px-4 flex items-center text-[#7B2CBF] opacity-20">
+                            <div className="w-1 h-1 rounded-full bg-current"></div>
+                            <div className="w-8 border-t border-dashed border-current mx-1"></div>
+                            <div className="w-1 h-1 rounded-full bg-current"></div>
+                          </div>
+                          <div className="flex-1 text-right">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Ke</p>
+                            <p className={`text-sm font-black line-clamp-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{ticket.end_point}</p>
+                          </div>
+                      </div>
+
+                      <div className={`flex items-center justify-between pt-4 border-t border-dashed transition-colors ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                          <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Waktu</p>
+                            <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-500' : 'text-gray-700'}`}>
+                                {new Date(ticket.created_at).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total Bayar</p>
+                            <p className="text-base font-black text-[#7B2CBF]">Rp {ticket.total_fare.toLocaleString()}</p>
+                          </div>
+                      </div>
+                    </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-20 flex flex-col items-center text-center animate-in fade-in duration-500">
+               <div className={`w-24 h-24 rounded-[40px] flex items-center justify-center mb-6 transition-colors ${isDarkMode ? 'bg-gray-900 text-gray-800' : 'bg-purple-50 text-purple-200'}`}>
+                  <TicketIcon size={48} />
+               </div>
+               <h3 className={`text-lg font-black ${isDarkMode ? 'text-gray-600' : 'text-gray-900'}`}>Belum ada tiket</h3>
+               <p className="text-sm text-gray-400 font-bold mt-2">Filter ini kosong atau kamu belum<br/>memesan tiket perjalanan.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Ticket Detail Overlay */}
+      {selectedTicket && (
+        <div className="fixed inset-0 z-[100] animate-in fade-in duration-300">
+          <div 
+            onClick={() => setSelectedTicket(null)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          ></div>
+          <div className={`absolute bottom-0 left-0 right-0 max-w-[430px] mx-auto h-[90vh] rounded-t-[45px] shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-500 overflow-hidden ${isDarkMode ? 'bg-[#0F0F13]' : 'bg-[#FDFDFF]'}`}>
+            
+            {/* Detail Header */}
+            <div className="px-8 pt-8 pb-4 flex items-center justify-between">
+              <button 
+                onClick={() => setSelectedTicket(null)}
+                className={`p-3 rounded-2xl transition-all active:scale-90 ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <h3 className={`text-sm font-black uppercase tracking-[3px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>E-Ticket Detail</h3>
+              <div className="flex gap-2">
+                 <button className={`p-3 rounded-2xl transition-all active:scale-90 ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                    <Share2 size={20} />
+                 </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto no-scrollbar px-8 py-4">
+               {/* Premium Ticket Visual */}
+               <div className={`rounded-[45px] overflow-hidden shadow-2xl relative transition-colors ${isDarkMode ? 'bg-[#1A1A20]' : 'bg-white'}`}>
+                  {/* Status Indicator Bar */}
+                  <div className={`h-3 w-full ${getStatusColor(selectedTicket.status)}`}></div>
+
+                  <div className="p-8 pb-10">
+                    <div className="flex justify-between items-start mb-8">
+                       <div className="flex items-center gap-4">
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg`} style={{ backgroundColor: selectedTicket.routes?.color || '#fbbf24' }}>
+                            {selectedTicket.routes?.route_code}
+                          </div>
+                          <div>
+                            <h4 className={`text-lg font-black transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedTicket.routes?.name}</h4>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Armada T-GO Reguler</p>
+                          </div>
+                       </div>
+                    </div>
+
+                    {/* Path Details */}
+                    <div className="space-y-6 mb-10">
+                       <div className="flex gap-4">
+                          <div className="flex flex-col items-center pt-1">
+                             <div className="w-3 h-3 rounded-full border-2 border-[#7B2CBF] bg-white"></div>
+                             <div className="flex-1 w-[2px] bg-dashed border-l-2 border-dashed border-gray-200 dark:border-gray-800 my-1"></div>
+                          </div>
+                          <div>
+                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Titik Jemput</p>
+                             <p className={`text-base font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{selectedTicket.start_point}</p>
+                             <p className="text-[10px] text-gray-400 font-medium">Tangerang, Banten</p>
+                          </div>
+                       </div>
+                       <div className="flex gap-4">
+                          <div className="flex flex-col items-center pt-1">
+                             <div className="w-3 h-3 rounded-full bg-[#7B2CBF]"></div>
+                          </div>
+                          <div>
+                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tujuan Akhir</p>
+                             <p className={`text-base font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{selectedTicket.end_point}</p>
+                             <p className="text-[10px] text-gray-400 font-medium">Tangerang, Banten</p>
+                          </div>
+                       </div>
+                    </div>
+
+                    {/* Information Grid */}
+                    <div className={`grid grid-cols-2 gap-6 p-6 rounded-[35px] transition-colors ${isDarkMode ? 'bg-gray-900/40' : 'bg-gray-50'}`}>
+                       <div className="flex gap-3">
+                          <Calendar size={16} className="text-[#7B2CBF] mt-0.5" />
+                          <div>
+                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Tanggal</p>
+                             <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                {new Date(selectedTicket.travel_date).toLocaleDateString("id-ID", { day: 'numeric', month: 'short' })}
+                             </p>
+                          </div>
+                       </div>
+                       <div className="flex gap-3">
+                          <Clock size={16} className="text-[#7B2CBF] mt-0.5" />
+                          <div>
+                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Waktu</p>
+                             <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                {new Date(selectedTicket.created_at).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' })}
+                             </p>
+                          </div>
+                       </div>
+                       <div className="flex gap-3">
+                          <CreditCard size={16} className="text-[#7B2CBF] mt-0.5" />
+                          <div>
+                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Metode</p>
+                             <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>T-GO Pay</p>
+                          </div>
+                       </div>
+                       <div className="flex gap-3">
+                          <Info size={16} className="text-[#7B2CBF] mt-0.5" />
+                          <div>
+                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Tarif</p>
+                             <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Rp {selectedTicket.total_fare.toLocaleString()}</p>
+                          </div>
+                       </div>
+                    </div>
                   </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">
-                    Belum ada tiket aktif
-                  </h3>
-                  <p className="text-muted-foreground text-sm mb-4">
-                    Pesan tiket untuk memulai perjalanan
-                  </p>
-                  <button
-                    onClick={() => router.push("/dashboard/map")}
-                    className="bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-                  >
-                    Pesan Tiket
+
+                  {/* Tear-off Line with Circles */}
+                  <div className="relative h-1">
+                    <div className={`absolute -left-5 -top-3 w-10 h-10 rounded-full transition-colors ${isDarkMode ? 'bg-[#0F0F13]' : 'bg-[#FDFDFF]'}`}></div>
+                    <div className={`absolute -right-5 -top-3 w-10 h-10 rounded-full transition-colors ${isDarkMode ? 'bg-[#0F0F13]' : 'bg-[#FDFDFF]'}`}></div>
+                    <div className="mx-8 border-t-2 border-dashed border-gray-100 dark:border-gray-800"></div>
+                  </div>
+
+                  {/* QR Code Section */}
+                  <div className="p-8 pt-12 flex flex-col items-center text-center">
+                    <p className={`text-[10px] font-black text-gray-400 uppercase tracking-[4px] mb-6`}>Scan to Board</p>
+                    <div className={`p-6 rounded-[40px] shadow-inner transition-colors ${isDarkMode ? 'bg-gray-900/60' : 'bg-gray-50'}`}>
+                       <div className={`p-4 bg-white rounded-[30px] shadow-sm`}>
+                          <QRCodeSVG
+                             value={selectedTicket.qr_code}
+                             size={160}
+                             level="H"
+                             fgColor="#000000"
+                             bgColor="#FFFFFF"
+                          />
+                       </div>
+                    </div>
+                    <p className={`text-[9px] font-bold text-gray-400 mt-6 tracking-widest uppercase`}>Tunjukkan kode QR kepada driver saat naik armada.</p>
+                  </div>
+               </div>
+
+               {/* Additional Actions */}
+               <div className="mt-8 mb-10 space-y-4">
+                  <button className="w-full py-5 bg-[#7B2CBF] text-white rounded-[30px] font-black flex items-center justify-center gap-3 shadow-xl shadow-purple-900/20 active:scale-95 transition-all uppercase text-xs tracking-[2px]">
+                    <Download size={18} />
+                    Simpan E-Ticket (PDF)
                   </button>
-                </CardContent>
-              </Card>
-            ) : (
-              activeTickets.map((ticket) => (
-                <TicketCard key={ticket.id} ticket={ticket} />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-4 mt-6">
-            {usedTickets.length === 0 ? (
-              <Card className="text-center py-12 border-dashed">
-                <CardContent>
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Clock className="w-8 h-8 text-gray-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">
-                    Belum ada riwayat
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    Tiket yang sudah digunakan akan muncul di sini
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              usedTickets.map((ticket) => (
-                <TicketCard key={ticket.id} ticket={ticket} />
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      <BottomNav />
+                  <button 
+                    onClick={() => setSelectedTicket(null)}
+                    className={`w-full py-5 rounded-[30px] font-black text-xs uppercase tracking-[2px] transition-all ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                  >
+                    Tutup Detail
+                  </button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
