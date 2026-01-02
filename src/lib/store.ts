@@ -69,3 +69,23 @@ export const useAppStore = create<AppState>((set) => ({
   setBookingData: (data) => set({ bookingData: data }),
   clearBookingData: () => set({ bookingData: null }),
 }));
+
+interface ThemeState {
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+  setDarkMode: (isDark: boolean) => void;
+}
+
+export const useThemeStore = create<ThemeState>()(
+  persist(
+    (set) => ({
+      isDarkMode: false,
+      toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+      setDarkMode: (isDark) => set({ isDarkMode: isDark }),
+    }),
+    {
+      name: 'theme-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
