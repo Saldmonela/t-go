@@ -142,7 +142,11 @@ export default function AdminTicketsPage() {
               paginatedTickets.map((ticket) => (
                 <TableRow key={ticket.id} className={isDarkMode ? 'border-gray-800 hover:bg-gray-800/50' : 'border-gray-50 hover:bg-gray-50'}>
                   <TableCell>
-                    <div className="font-mono text-xs font-bold bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded inline-block">
+                    <div className={`font-mono text-[10px] font-black px-2 py-1 rounded-lg inline-block tracking-tighter ${
+                      isDarkMode 
+                        ? 'bg-gray-800/50 text-gray-400 border border-gray-700' 
+                        : 'bg-purple-50 text-purple-700 border border-purple-100 shadow-sm'
+                    }`}>
                         {ticket.qr_code || ticket.id.slice(0, 8)}
                     </div>
                   </TableCell>
