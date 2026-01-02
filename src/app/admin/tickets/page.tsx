@@ -1,11 +1,14 @@
-'use client';
+// app/admin/tickets/page.tsx
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
-import { Ticket } from '@/types/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
+import { Ticket as TicketIcon, Search, Filter, CheckCircle, XCircle, Clock, Download, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -13,25 +16,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, Eye, Filter, Download } from 'lucide-react';
-import { toast } from 'sonner';
+} from "@/components/ui/table";
+import { useThemeStore } from "@/lib/store";
+import { toast } from "sonner";
 
 export default function AdminTicketsPage() {
-  const router = useRouter();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const { isDarkMode } = useThemeStore();
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -42,249 +35,168 @@ export default function AdminTicketsPage() {
   const fetchTickets = async () => {
     try {
       setLoading(true);
+      // Try RPC first
+      const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_admin_tickets');
       
-      let query = supabase
-        .from('tickets')
-        .select(`
-          *,
-          profiles:user_id (full_name, phone),
-          routes:route_id (name, route_code)
-        `)
-        .order('created_at', { ascending: false });
+      if (!rpcError && rpcData) {
+         setTickets(rpcData);
+      } else {
+         console.warn("RPC get_admin_tickets failed, falling back. Error details:", rpcError);
+         // Fallback basic fetch
+         const { data, error } = await supabase
+            .from("tickets")
+            .select("*")
+            .order("created_at", { ascending: false });
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setTickets(data || []);
+         if (error) throw error;
+         setTickets(data || []);
+      }
     } catch (error) {
-      console.error('Error fetching tickets:', error);
-      toast.error('Gagal memuat data tiket');
+      console.error("Error fetching tickets:", error);
+      toast.error("Gagal memuat tiket");
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter logic
-  const filteredTickets = tickets.filter((ticket) => {
-    const matchesSearch = 
-      ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.routes?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
-  const paginatedTickets = filteredTickets.slice(
-    (page - 1) * itemsPerPage,
-    page * itemsPerPage
+  const filteredTickets = tickets.filter((ticket) =>
+    (ticket.status || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (ticket.qr_code || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (ticket.user_email || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+  const paginatedTickets = filteredTickets.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':
-        return <Badge className="bg-green-500">Aktif</Badge>;
-      case 'used':
-        return <Badge className="bg-gray-500">Terpakai</Badge>;
-      case 'expired':
-        return <Badge className="bg-red-500">Kadaluarsa</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-500">Pending</Badge>;
+      case "active":
+        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">Aktif</Badge>;
+      case "completed":
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 border-0">Selesai</Badge>;
+      case "cancelled":
+        return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 border-0">Batal</Badge>;
       default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
-  const getPaymentStatusBadge = (status: string | null) => {
-    switch (status) {
-      case 'success':
-        return <Badge variant="outline" className="text-green-600 border-green-600">Lunas</Badge>;
-      case 'pending':
-        return <Badge variant="outline" className="text-yellow-600 border-yellow-600">Menunggu</Badge>;
-      case 'failed':
-        return <Badge variant="outline" className="text-red-600 border-red-600">Gagal</Badge>;
-      default:
-        return <Badge variant="outline">-</Badge>;
+        return <Badge variant="outline" className="text-gray-500">Pending</Badge>;
     }
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className={`p-6 space-y-6 min-h-full ${isDarkMode ? 'bg-[#121216] text-white' : 'bg-gray-50 text-gray-900'}`}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Manajemen Tiket</h1>
-          <p className="text-gray-500">Kelola semua tiket pemesanan pengguna</p>
+          <h1 className="text-2xl font-black tracking-tight">Manajemen Tiket</h1>
+          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Pantau dan validasi tiket perjalanan pengguna.
+          </p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Export CSV
+        <Button variant="outline" className={`gap-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white'}`}>
+             <Download className="w-4 h-4" />
+             Export Data
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Tiket</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tickets.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Tiket Aktif</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {tickets.filter(t => t.status === 'active').length}
+      <div className={`rounded-xl border shadow-sm overflow-hidden ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
+        <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row gap-4">
+             <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                placeholder="Cari Kode QR, Status, atau User..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`pl-10 h-10 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500' : 'bg-gray-50 border-gray-200'}`}
+                />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Menunggu Pembayaran</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {tickets.filter(t => t.payment_status === 'pending').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Pendapatan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              Rp {tickets
-                .filter(t => t.payment_status === 'success')
-                .reduce((acc, curr) => acc + curr.total_fare, 0)
-                .toLocaleString('id-ID')}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-lg shadow-sm">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Cari ID Tiket, Nama User, atau Rute..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+             <Button variant="outline" className={`gap-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-white'}`}>
+                <Filter className="w-4 h-4" />
+                Filter Status
+            </Button>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full md:w-[200px]">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              <SelectValue placeholder="Filter Status" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="active">Aktif</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="used">Terpakai</SelectItem>
-            <SelectItem value="expired">Kadaluarsa</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID Tiket</TableHead>
-              <TableHead>Pengguna</TableHead>
-              <TableHead>Rute</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Total</TableHead>
+          <TableHeader className={isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}>
+            <TableRow className={isDarkMode ? 'border-gray-800 hover:bg-transparent' : 'border-gray-100 hover:bg-transparent'}>
+              <TableHead>ID Tiket / QR</TableHead>
+              <TableHead>Penumpang</TableHead>
+              <TableHead>Rute & Tujuan</TableHead>
+              <TableHead>Waktu</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Pembayaran</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="text-right">Harga</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-600" />
-                  <p className="text-gray-500 mt-2">Memuat data tiket...</p>
-                </TableCell>
+                 <TableCell colSpan={6} className="text-center py-12">
+                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-600" />
+                   <p className="text-gray-500 text-xs font-bold mt-2 uppercase tracking-wider">Memuat tiket...</p>
+                 </TableCell>
               </TableRow>
             ) : paginatedTickets.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  <p className="text-gray-500">Tidak ada tiket ditemukan.</p>
-                </TableCell>
+               <TableRow>
+                 <TableCell colSpan={6} className="text-center py-12 text-gray-500">
+                   Tidak ada tiket ditemukan.
+                 </TableCell>
               </TableRow>
             ) : (
               paginatedTickets.map((ticket) => (
-                <TableRow key={ticket.id}>
-                  <TableCell className="font-mono text-xs">{ticket.id.slice(0, 8)}...</TableCell>
+                <TableRow key={ticket.id} className={isDarkMode ? 'border-gray-800 hover:bg-gray-800/50' : 'border-gray-50 hover:bg-gray-50'}>
                   <TableCell>
-                    <div className="font-medium">{ticket.profiles?.full_name || 'User'}</div>
-                    <div className="text-xs text-gray-500">{ticket.profiles?.phone || '-'}</div>
+                    <div className="font-mono text-xs font-bold bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded inline-block">
+                        {ticket.qr_code || ticket.id.slice(0, 8)}
+                    </div>
+                  </TableCell>
+                  <TableCell className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                      {ticket.user_email || 'Unknown User'}
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{ticket.routes?.name}</div>
-                    <div className="text-xs text-gray-500">{ticket.routes?.route_code}</div>
+                    <div className="flex flex-col">
+                        <span className={`font-bold text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>{ticket.route_name || 'Rute'}</span>
+                        <span className="text-[10px] text-gray-500">{ticket.start_point} → {ticket.end_point}</span>
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    {new Date(ticket.travel_date).toLocaleDateString('id-ID')}
-                  </TableCell>
-                  <TableCell>
-                    Rp {ticket.total_fare.toLocaleString('id-ID')}
+                  <TableCell className="text-xs text-gray-500">
+                    {new Date(ticket.created_at).toLocaleString('id-ID')}
                   </TableCell>
                   <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                  <TableCell>{getPaymentStatusBadge(ticket.payment_status)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => router.push(`/admin/tickets/${ticket.id}`)}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      Detail
-                    </Button>
+                  <TableCell className="text-right font-bold text-purple-600 dark:text-purple-400">
+                    Rp {Number(ticket.total_fare).toLocaleString('id-ID')}
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-gray-500">
-          Menampilkan {(page - 1) * itemsPerPage + 1} - {Math.min(page * itemsPerPage, filteredTickets.length)} dari {filteredTickets.length} tiket
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            Sebelumnya
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            Selanjutnya
-          </Button>
+        
+        {/* Pagination */}
+        <div className={`p-4 border-t flex items-center justify-between ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+             <p className="text-xs text-gray-500 font-medium">
+                {filteredTickets.length > 0 ? (
+                    <>
+                        {(page - 1) * itemsPerPage + 1} - {Math.min(page * itemsPerPage, filteredTickets.length)} dari {filteredTickets.length}
+                    </>
+                ) : '0 data'}
+             </p>
+             <div className="flex gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-8 text-xs ${isDarkMode ? 'bg-transparent border-gray-700 text-gray-300 disabled:opacity-30' : ''}`}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                >
+                    Prev
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-8 text-xs ${isDarkMode ? 'bg-transparent border-gray-700 text-gray-300 disabled:opacity-30' : ''}`}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                >
+                    Next
+                </Button>
+             </div>
         </div>
       </div>
     </div>

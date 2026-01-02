@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import { useThemeStore } from '@/lib/store';
 import { Route, RouteStop } from '@/types/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,17 +20,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Plus, Pencil, Trash2, MapPin, Save } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Pencil, Trash2, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AdminRouteStopsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
+  const { isDarkMode } = useThemeStore();
   
   const [route, setRoute] = useState<Route | null>(null);
   const [stops, setStops] = useState<RouteStop[]>([]);
@@ -47,7 +48,9 @@ export default function AdminRouteStopsPage({ params }: { params: Promise<{ id: 
   });
 
   useEffect(() => {
-    fetchRouteAndStops();
+    if (id) {
+      fetchRouteAndStops();
+    }
   }, [id]);
 
   const fetchRouteAndStops = async () => {
@@ -73,14 +76,6 @@ export default function AdminRouteStopsPage({ params }: { params: Promise<{ id: 
 
       if (stopsError) throw stopsError;
       setStops(stopsData || []);
-      
-      // Set next order default
-      if (stopsData && stopsData.length > 0) {
-        setFormData(prev => ({
-          ...prev,
-          stop_order: stopsData.length + 1
-        }));
-      }
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -94,16 +89,16 @@ export default function AdminRouteStopsPage({ params }: { params: Promise<{ id: 
     if (stop) {
       setEditingStop(stop);
       setFormData({
-        stop_name: stop.stop_name,
-        stop_order: stop.stop_order,
-        latitude: stop.latitude.toString(),
-        longitude: stop.longitude.toString(),
+        stop_name: stop.stop_name || '',
+        stop_order: stop.stop_order || 1,
+        latitude: stop.latitude?.toString() || '',
+        longitude: stop.longitude?.toString() || '',
       });
     } else {
       setEditingStop(null);
       setFormData({
         stop_name: '',
-        stop_order: stops.length + 1,
+        stop_order: (stops?.length || 0) + 1,
         latitude: '',
         longitude: '',
       });
@@ -184,175 +179,221 @@ export default function AdminRouteStopsPage({ params }: { params: Promise<{ id: 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      <div className={`flex items-center justify-center min-h-screen ${isDarkMode ? 'bg-[#121216]' : 'bg-gray-50/50'}`}>
+        <div className="text-center">
+            <Loader2 className="w-10 h-10 animate-spin text-purple-600 mx-auto mb-4" />
+            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Memuat data halte...</p>
+        </div>
       </div>
     );
   }
 
   if (!route) {
     return (
-      <div className="p-6 text-center">
-        <h1 className="text-2xl font-bold text-gray-800">Rute Tidak Ditemukan</h1>
-        <Button onClick={() => router.back()} className="mt-4">Kembali</Button>
+      <div className={`p-6 text-center min-h-screen flex flex-col items-center justify-center ${isDarkMode ? 'bg-[#121216] text-white' : 'bg-white'}`}>
+        <MapPin className="w-16 h-16 text-gray-400 mb-4" />
+        <h1 className="text-2xl font-bold">Rute Tidak Ditemukan</h1>
+        <Button onClick={() => router.push('/admin/routes')} className="mt-6 bg-purple-600">Kembali ke Daftar Rute</Button>
       </div>
     );
   }
 
+  const inputClasses = isDarkMode 
+    ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:ring-purple-500" 
+    : "focus:ring-purple-500";
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/admin/routes')}>
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Manajemen Halte</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: route.color || '#7B2CBF' }}
-              />
-              <p className="text-gray-500 font-medium">{route.route_code} - {route.name}</p>
+    <div className={`p-6 min-h-full ${isDarkMode ? 'bg-[#121216] text-white' : 'bg-gray-50/50'}`}>
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => router.push('/admin/routes')}
+                className={isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : ''}
+            >
+                <ArrowLeft className="w-6 h-6" />
+            </Button>
+            <div>
+                <h1 className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Manajemen Halte</h1>
+                <div className="flex items-center gap-2 mt-1 px-2 py-0.5 rounded-full bg-gray-500/10 w-fit">
+                <span 
+                    className="w-2.5 h-2.5 rounded-full shadow-sm" 
+                    style={{ backgroundColor: route.color || '#7B2CBF' }}
+                />
+                <p className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {route.route_code} • {route.name}
+                </p>
+                </div>
             </div>
-          </div>
+            </div>
+            <Button 
+                onClick={() => handleOpenDialog()}
+                className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-900/20"
+            >
+            <Plus className="w-4 h-4 mr-2" />
+            Tambah Halte
+            </Button>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="w-4 h-4 mr-2" />
-          Tambah Halte
-        </Button>
-      </div>
 
-      {/* Stops List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Daftar Pemberhentian ({stops.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Urutan</TableHead>
-                <TableHead>Nama Halte</TableHead>
-                <TableHead>Koordinat</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stops.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                    Belum ada halte untuk rute ini.
-                  </TableCell>
+        {/* Stops List */}
+        <Card className={`border shadow-sm overflow-hidden ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
+            <CardHeader className="border-b border-dashed border-gray-800/50">
+            <CardTitle className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <MapPin className="w-5 h-5 text-purple-500" />
+                Daftar Pemberhentian ({stops.length})
+            </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+            <Table>
+                <TableHeader className={isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50'}>
+                <TableRow className={isDarkMode ? 'border-gray-800' : ''}>
+                    <TableHead className={`w-[80px] font-bold ${isDarkMode ? 'text-gray-400' : ''}`}>Urutan</TableHead>
+                    <TableHead className={`font-bold ${isDarkMode ? 'text-gray-400' : ''}`}>Nama Halte</TableHead>
+                    <TableHead className={`font-bold ${isDarkMode ? 'text-gray-400' : ''}`}>Koordinat</TableHead>
+                    <TableHead className={`text-right font-bold ${isDarkMode ? 'text-gray-400' : ''}`}>Aksi</TableHead>
                 </TableRow>
-              ) : (
-                stops.map((stop) => (
-                  <TableRow key={stop.id}>
-                    <TableCell className="font-bold text-center bg-gray-50">
-                      {stop.stop_order}
+                </TableHeader>
+                <TableBody>
+                {stops.length === 0 ? (
+                    <TableRow>
+                    <TableCell colSpan={4} className="text-center py-16 text-gray-500">
+                        <div className="flex flex-col items-center gap-2">
+                            <MapPin className="w-12 h-12 opacity-20" />
+                            <p>Belum ada halte untuk rute ini.</p>
+                            <Button variant="link" onClick={() => handleOpenDialog()} className="text-purple-500">Tambah sekarang</Button>
+                        </div>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        {stop.stop_name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-gray-500">
-                      {stop.latitude.toFixed(6)}, {stop.longitude.toFixed(6)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenDialog(stop)}
-                        >
-                          <Pencil className="w-4 h-4 text-blue-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(stop.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </TableRow>
+                ) : (
+                    stops.map((stop) => (
+                    <TableRow key={stop.id} className={`${isDarkMode ? 'hover:bg-gray-800/50 border-gray-800' : 'hover:bg-gray-50/50'}`}>
+                        <TableCell className="text-center">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs ${isDarkMode ? 'bg-purple-900/40 text-purple-400' : 'bg-purple-50 text-purple-700'}`}>
+                                {stop.stop_order}
+                            </span>
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                        <div className="flex items-center gap-2">
+                            <span className={isDarkMode ? 'text-gray-200' : 'text-gray-900'}>{stop.stop_name}</span>
+                        </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-[10px] text-gray-500">
+                        {stop.latitude?.toFixed(6)}, {stop.longitude?.toFixed(6)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                            <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenDialog(stop)}
+                            className={isDarkMode ? 'text-blue-400 hover:bg-blue-900/20' : 'text-blue-600'}
+                            >
+                            <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(stop.id)}
+                            className={isDarkMode ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600'}
+                            >
+                            <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
+                </TableBody>
+            </Table>
+            </CardContent>
+        </Card>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingStop ? 'Edit Halte' : 'Tambah Halte Baru'}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="stop_name">Nama Halte</Label>
-              <Input
-                id="stop_name"
-                value={formData.stop_name}
-                onChange={(e) => setFormData({ ...formData, stop_name: e.target.value })}
-                placeholder="Contoh: Halte Pasar Lama"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="stop_order">Urutan</Label>
-              <Input
-                id="stop_order"
-                type="number"
-                value={formData.stop_order}
-                onChange={(e) => setFormData({ ...formData, stop_order: parseInt(e.target.value) })}
-                min={1}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="latitude">Latitude</Label>
+        {/* Add/Edit Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className={`${isDarkMode ? 'bg-[#1A1A20] border-gray-800 text-white' : ''} sm:max-w-md`}>
+            <DialogHeader>
+                <DialogTitle className="font-bold flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-purple-500" />
+                    {editingStop ? 'Edit Halte' : 'Tambah Halte Baru'}
+                </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid gap-2">
+                <Label htmlFor="stop_name" className={isDarkMode ? 'text-gray-300' : ''}>Nama Halte</Label>
                 <Input
-                  id="latitude"
-                  type="number"
-                  step="any"
-                  value={formData.latitude}
-                  onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                  placeholder="-6.xxxxxx"
-                  required
+                    id="stop_name"
+                    value={formData.stop_name}
+                    onChange={(e) => setFormData({ ...formData, stop_name: e.target.value })}
+                    placeholder="Contoh: Halte Pasar Lama"
+                    required
+                    className={inputClasses}
                 />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="longitude">Longitude</Label>
+                </div>
+                <div className="grid gap-2">
+                <Label htmlFor="stop_order" className={isDarkMode ? 'text-gray-300' : ''}>Urutan</Label>
                 <Input
-                  id="longitude"
-                  type="number"
-                  step="any"
-                  value={formData.longitude}
-                  onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                  placeholder="106.xxxxxx"
-                  required
+                    id="stop_order"
+                    type="number"
+                    value={formData.stop_order}
+                    onChange={(e) => setFormData({ ...formData, stop_order: parseInt(e.target.value) })}
+                    min={1}
+                    required
+                    className={inputClasses}
                 />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button type="submit" disabled={processing}>
-                {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Simpan
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="latitude" className={isDarkMode ? 'text-gray-300' : ''}>Latitude</Label>
+                    <Input
+                    id="latitude"
+                    type="number"
+                    step="any"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                    placeholder="-6.xxxxxx"
+                    required
+                    className={inputClasses}
+                    />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="longitude" className={isDarkMode ? 'text-gray-300' : ''}>Longitude</Label>
+                    <Input
+                    id="longitude"
+                    type="number"
+                    step="any"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                    placeholder="106.xxxxxx"
+                    required
+                    className={inputClasses}
+                    />
+                </div>
+                </div>
+                <DialogFooter className="pt-4">
+                <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsDialogOpen(false)}
+                    className={`flex-1 ${isDarkMode ? 'bg-transparent border-gray-700 hover:bg-gray-800' : ''}`}
+                >
+                    Batal
+                </Button>
+                <Button 
+                    type="submit" 
+                    disabled={processing}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-900/20"
+                >
+                    {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {editingStop ? 'Update Halte' : 'Simpan Halte'}
+                </Button>
+                </DialogFooter>
+            </form>
+            </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { useThemeStore } from "@/lib/store";
 import {
   Dialog,
   DialogContent,
@@ -25,31 +26,9 @@ interface EditRouteModalProps {
 }
 
 const defaultColors = [
-  "#7B2CBF",
-  "#9D4EDD",
-  "#C77DFF",
-  "#5A189A",
-  "#3C096C",
-  "#0369A1",
-  "#0EA5E9",
-  "#38BDF8",
-  "#1E40AF",
-  "#1D4ED8",
-  "#059669",
-  "#10B981",
-  "#34D399",
-  "#047857",
-  "#065F46",
-  "#DC2626",
-  "#EF4444",
-  "#F87171",
-  "#B91C1C",
-  "#991B1B",
-  "#EA580C",
-  "#F97316",
-  "#FB923C",
-  "#C2410C",
-  "#9A3412",
+  "#7B2CBF", // Purple
+  "#0284C7", // Blue
+  "#F97316", // Orange
 ];
 
 export default function EditRouteModal({
@@ -58,6 +37,7 @@ export default function EditRouteModal({
   route,
   onSuccess,
 }: EditRouteModalProps) {
+  const { isDarkMode } = useThemeStore();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -125,13 +105,17 @@ export default function EditRouteModal({
     }));
   };
 
+  const inputClasses = isDarkMode 
+    ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:ring-purple-500" 
+    : "focus:ring-purple-500";
+
   if (!route) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`sm:max-w-lg max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-[#1A1A20] border-gray-800 text-white' : ''}`}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-bold">
             <div
               className="w-3 h-6 rounded-full"
               style={{ backgroundColor: formData.color }}
@@ -142,39 +126,39 @@ export default function EditRouteModal({
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Route Preview */}
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-200">
+          <div className={`${isDarkMode ? 'bg-gradient-to-r from-purple-900/20 to-blue-900/20 border-purple-800' : 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'} rounded-xl p-4 border animate-in fade-in duration-500`}>
             <div className="flex items-center gap-3 mb-3">
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md"
                 style={{ backgroundColor: formData.color }}
               >
                 {formData.route_code}
               </div>
               <div>
-                <h3 className="font-bold text-gray-900">{formData.name}</h3>
-                <p className="text-sm text-gray-600">Pratinjau rute</p>
+                <h3 className={`font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formData.name}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Pratinjau rute</p>
               </div>
             </div>
 
             <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-gray-700">
-                <MapPin className="w-4 h-4 text-green-600" />
+              <div className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <MapPin className="w-4 h-4 text-green-500" />
                 <span className="font-medium">Dari:</span>
-                <span className="flex-1">{formData.start_point}</span>
+                <span className="flex-1 text-xs truncate font-mono opacity-80">{formData.start_point || '-'}</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-700">
-                <MapPin className="w-4 h-4 text-red-600" />
+              <div className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <MapPin className="w-4 h-4 text-red-500" />
                 <span className="font-medium">Ke:</span>
-                <span className="flex-1">{formData.end_point}</span>
+                <span className="flex-1 text-xs truncate font-mono opacity-80">{formData.end_point || '-'}</span>
               </div>
-              <div className="flex gap-4 text-gray-700">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  <span>{formData.estimated_time} menit</span>
+              <div className={`flex gap-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mt-2 pt-2 border-t ${isDarkMode ? 'border-gray-700/50' : 'border-gray-200/50'}`}>
+                <div className="flex items-center gap-1.5 bg-gray-500/10 px-2 py-1 rounded">
+                  <Clock className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="text-xs font-semibold">{formData.estimated_time} menit</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Wallet className="w-4 h-4 text-green-600" />
-                  <span>Rp {formData.fare.toLocaleString("id-ID")}</span>
+                <div className="flex items-center gap-1.5 bg-gray-500/10 px-2 py-1 rounded">
+                  <Wallet className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-xs font-semibold">Rp {formData.fare.toLocaleString("id-ID")}</span>
                 </div>
               </div>
             </div>
@@ -185,7 +169,7 @@ export default function EditRouteModal({
             <div className="space-y-2">
               <Label
                 htmlFor="edit_route_code"
-                className="flex items-center gap-1"
+                className={`flex items-center gap-1 ${isDarkMode ? 'text-gray-300' : ''}`}
               >
                 Kode Rute *<span className="text-xs text-gray-500">(unik)</span>
               </Label>
@@ -197,12 +181,12 @@ export default function EditRouteModal({
                 }
                 placeholder="T01"
                 required
-                className="font-mono font-bold"
+                className={`font-mono font-bold ${inputClasses}`}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit_estimated_time">Waktu Perjalanan *</Label>
+              <Label htmlFor="edit_estimated_time" className={isDarkMode ? 'text-gray-300' : ''}>Waktu Perjalanan *</Label>
               <div className="relative">
                 <Input
                   id="edit_estimated_time"
@@ -214,9 +198,9 @@ export default function EditRouteModal({
                   min="1"
                   max="180"
                   required
-                  className="pr-12"
+                  className={`pr-12 ${inputClasses}`}
                 />
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">
                   menit
                 </span>
               </div>
@@ -224,51 +208,52 @@ export default function EditRouteModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit_name">Nama Rute *</Label>
+            <Label htmlFor="edit_name" className={isDarkMode ? 'text-gray-300' : ''}>Nama Rute *</Label>
             <Input
               id="edit_name"
               value={formData.name}
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder="Poris Plawad - Cyberpark Karawaci"
               required
+              className={inputClasses}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit_start_point">Titik Keberangkatan *</Label>
+            <Label htmlFor="edit_start_point" className={isDarkMode ? 'text-gray-300' : ''}>Titik Keberangkatan *</Label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-600 w-4 h-4" />
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-500 w-4 h-4" />
               <Input
                 id="edit_start_point"
                 value={formData.start_point}
                 onChange={(e) => handleChange("start_point", e.target.value)}
                 placeholder="Halte Terminal Poris Plawad"
                 required
-                className="pl-10"
+                className={`pl-10 ${inputClasses}`}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit_end_point">Titik Tujuan *</Label>
+            <Label htmlFor="edit_end_point" className={isDarkMode ? 'text-gray-300' : ''}>Titik Tujuan *</Label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-600 w-4 h-4" />
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-500 w-4 h-4" />
               <Input
                 id="edit_end_point"
                 value={formData.end_point}
                 onChange={(e) => handleChange("end_point", e.target.value)}
                 placeholder="Halte Cyberpark Karawaci"
                 required
-                className="pl-10"
+                className={`pl-10 ${inputClasses}`}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="edit_fare">Tarif *</Label>
+              <Label htmlFor="edit_fare" className={isDarkMode ? 'text-gray-300' : ''}>Tarif *</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                <span className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Rp
                 </span>
                 <Input
@@ -281,24 +266,24 @@ export default function EditRouteModal({
                   min="1000"
                   step="500"
                   required
-                  className="pl-10"
+                  className={`pl-10 ${inputClasses}`}
                 />
               </div>
               <p className="text-xs text-gray-500">Minimal Rp 1.000</p>
             </div>
 
             <div className="space-y-2">
-              <Label>Warna Rute</Label>
-              <div className="flex gap-1.5 flex-wrap">
+              <Label className={isDarkMode ? 'text-gray-300' : ''}>Warna Rute</Label>
+              <div className="flex gap-3 p-1">
                 {defaultColors.map((color) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => handleChange("color", color)}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                    className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
                       formData.color === color
-                        ? "border-gray-800 scale-110 ring-2 ring-offset-1 ring-gray-300"
-                        : "border-gray-300 hover:scale-105"
+                        ? (isDarkMode ? "border-white ring-2 ring-purple-500 ring-offset-2 ring-offset-[#1A1A20]" : "border-gray-800 ring-2 ring-purple-500 ring-offset-2")
+                        : "border-gray-300"
                     }`}
                     style={{ backgroundColor: color }}
                     title={color}
@@ -309,31 +294,32 @@ export default function EditRouteModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit_description">Deskripsi Tambahan</Label>
+            <Label htmlFor="edit_description" className={isDarkMode ? 'text-gray-300' : ''}>Deskripsi Tambahan</Label>
             <Textarea
               id="edit_description"
               value={formData.description}
               onChange={(e) => handleChange("description", e.target.value)}
               placeholder="Tambahkan deskripsi tentang rute ini (opsional)"
               rows={3}
+              className={inputClasses}
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
+          <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 border-gray-300"
+              className={`flex-1 ${isDarkMode ? 'bg-transparent border-gray-700 hover:bg-gray-800 text-gray-300' : 'border-gray-300'}`}
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-900/20"
             >
               {loading ? (
                 <>

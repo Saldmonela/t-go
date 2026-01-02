@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { useThemeStore } from "@/lib/store";
 import {
   Dialog,
   DialogContent,
@@ -22,21 +23,9 @@ interface AddRouteModalProps {
 }
 
 const defaultColors = [
-  "#7B2CBF",
-  "#9D4EDD",
-  "#C77DFF",
-  "#5A189A",
-  "#3C096C",
-  "#0369A1",
-  "#0EA5E9",
-  "#38BDF8",
-  "#1E40AF",
-  "#1D4ED8",
-  "#059669",
-  "#10B981",
-  "#34D399",
-  "#047857",
-  "#065F46",
+  "#7B2CBF", // Purple
+  "#0284C7", // Blue
+  "#F97316", // Orange
 ];
 
 export default function AddRouteModal({
@@ -44,6 +33,7 @@ export default function AddRouteModal({
   onClose,
   onSuccess,
 }: AddRouteModalProps) {
+  const { isDarkMode } = useThemeStore();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -90,11 +80,15 @@ export default function AddRouteModal({
     }));
   };
 
+  const inputClasses = isDarkMode 
+    ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:ring-purple-500" 
+    : "focus:ring-purple-500";
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={`sm:max-w-md ${isDarkMode ? 'bg-[#1A1A20] border-gray-800 text-white' : ''}`}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-bold">
             Tambah Rute Baru
           </DialogTitle>
         </DialogHeader>
@@ -102,17 +96,18 @@ export default function AddRouteModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="route_code">Kode Rute *</Label>
+              <Label htmlFor="route_code" className={isDarkMode ? 'text-gray-300' : ''}>Kode Rute *</Label>
               <Input
                 id="route_code"
                 value={formData.route_code}
-                onChange={(e) => handleChange("route_code", e.target.value)}
+                onChange={(e) => handleChange("route_code", e.target.value.toUpperCase())}
                 placeholder="T01"
                 required
+                className={inputClasses}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="estimated_time">Waktu (menit) *</Label>
+              <Label htmlFor="estimated_time" className={isDarkMode ? 'text-gray-300' : ''}>Waktu (menit) *</Label>
               <Input
                 id="estimated_time"
                 type="number"
@@ -122,46 +117,50 @@ export default function AddRouteModal({
                 }
                 min="1"
                 required
+                className={inputClasses}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="name">Nama Rute *</Label>
+            <Label htmlFor="name" className={isDarkMode ? 'text-gray-300' : ''}>Nama Rute *</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => handleChange("name", e.target.value)}
               placeholder="Poris Plawad - Cyberpark Karawaci"
               required
+              className={inputClasses}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="start_point">Titik Awal *</Label>
+            <Label htmlFor="start_point" className={isDarkMode ? 'text-gray-300' : ''}>Titik Awal *</Label>
             <Input
               id="start_point"
               value={formData.start_point}
               onChange={(e) => handleChange("start_point", e.target.value)}
               placeholder="Halte Terminal Poris Plawad"
               required
+              className={inputClasses}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="end_point">Titik Akhir *</Label>
+            <Label htmlFor="end_point" className={isDarkMode ? 'text-gray-300' : ''}>Titik Akhir *</Label>
             <Input
               id="end_point"
               value={formData.end_point}
               onChange={(e) => handleChange("end_point", e.target.value)}
               placeholder="Halte Cyberpark Karawaci"
               required
+              className={inputClasses}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fare">Tarif (Rp) *</Label>
+              <Label htmlFor="fare" className={isDarkMode ? 'text-gray-300' : ''}>Tarif (Rp) *</Label>
               <Input
                 id="fare"
                 type="number"
@@ -169,19 +168,20 @@ export default function AddRouteModal({
                 onChange={(e) => handleChange("fare", parseInt(e.target.value))}
                 min="1000"
                 required
+                className={inputClasses}
               />
             </div>
             <div className="space-y-2">
-              <Label>Warna Rute</Label>
-              <div className="flex gap-2 flex-wrap">
-                {defaultColors.slice(0, 5).map((color) => (
+              <Label className={isDarkMode ? 'text-gray-300' : ''}>Warna Rute</Label>
+              <div className="flex gap-3 p-1">
+                {defaultColors.map((color) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => handleChange("color", color)}
-                    className={`w-8 h-8 rounded-full border-2 ${
+                    className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
                       formData.color === color
-                        ? "border-gray-800"
+                        ? (isDarkMode ? "border-white ring-2 ring-purple-500 ring-offset-2 ring-offset-[#1A1A20]" : "border-gray-800 ring-2 ring-purple-500 ring-offset-2")
                         : "border-gray-300"
                     }`}
                     style={{ backgroundColor: color }}
@@ -197,14 +197,14 @@ export default function AddRouteModal({
               variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="flex-1"
+              className={`flex-1 ${isDarkMode ? 'bg-transparent border-gray-700 hover:bg-gray-800 text-gray-300' : ''}`}
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-900/20"
             >
               {loading ? (
                 <>

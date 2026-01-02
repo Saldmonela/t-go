@@ -1,30 +1,40 @@
-'use client';
+// app/admin/analytics/page.tsx
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  Ticket, 
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  BarChart3,
+  TrendingUp,
+  Users,
+  Ticket,
   Calendar,
   Download,
   ArrowUpRight,
-  ArrowDownRight
-} from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+  ArrowDownRight,
+  PieChart,
+  Activity,
+  Loader2
+} from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useThemeStore } from "@/lib/store";
+import { toast } from "sonner";
 
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
+  const { isDarkMode } = useThemeStore();
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalTickets: 0,
     totalPassengers: 0,
     averageOccupancy: 0
   });
-  const [timeRange, setTimeRange] = useState('7d');
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [topRoutes, setTopRoutes] = useState<any[]>([]);
+  const [timeRange, setTimeRange] = useState("7d");
 
   useEffect(() => {
     fetchAnalytics();
@@ -33,226 +43,204 @@ export default function AdminAnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      
-      // Fetch tickets for calculation
-      const { data: tickets } = await supabase
-        .from('tickets')
-        .select('total_fare, passenger_count, created_at, payment_status');
+      const { data, error } = await (supabase as any).rpc("get_admin_analytics");
 
-      if (tickets) {
-        const paidTickets = tickets.filter(t => t.payment_status === 'success');
-        
-        const totalRevenue = paidTickets.reduce((sum, t) => sum + t.total_fare, 0);
-        const totalPassengers = tickets.reduce((sum, t) => sum + t.passenger_count, 0);
-        
+      if (error) throw error;
+
+      if (data) {
         setStats({
-          totalRevenue,
-          totalTickets: tickets.length,
-          totalPassengers,
-          averageOccupancy: 65 // Dummy value for now
+          totalRevenue: data.stats?.totalRevenue || 0,
+          totalTickets: data.stats?.totalTickets || 0,
+          totalPassengers: data.stats?.totalPassengers || 0,
+          averageOccupancy: data.stats?.occupancy || 0
         });
+        setRevenueData(data.revenueData || []);
+        setTopRoutes(data.topRoutes || []);
       }
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      console.error("Error fetching analytics:", error);
+      toast.error("Gagal memuat data analitik");
     } finally {
       setLoading(false);
     }
   };
 
-  // Mock data for charts
-  const revenueData = [
-    { day: 'Sen', value: 450000 },
-    { day: 'Sel', value: 320000 },
-    { day: 'Rab', value: 550000 },
-    { day: 'Kam', value: 480000 },
-    { day: 'Jum', value: 600000 },
-    { day: 'Sab', value: 850000 },
-    { day: 'Min', value: 750000 },
-  ];
-
-  const topRoutes = [
-    { code: 'T01', name: 'Terminal Cimone - CBD Ciledug', passengers: 1240, revenue: 6200000 },
-    { code: 'T02', name: 'Bintaro - Serpong', passengers: 980, revenue: 6860000 },
-    { code: 'T04', name: 'Tangerang Kota - Alam Sutera', passengers: 850, revenue: 5100000 },
-  ];
+  const MetricCard = ({ title, value, icon: Icon, colorClass, trend, trendValue }: any) => (
+    <Card className={`border shadow-sm overflow-hidden ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
+      <CardContent className="p-5">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{title}</p>
+            <h3 className={`text-2xl font-black mt-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {value}
+            </h3>
+          </div>
+          <div className={`p-2.5 rounded-xl ${colorClass}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+        </div>
+        <div className={`flex items-center mt-3 text-xs font-bold ${trend === 'up' ? 'text-emerald-500' : 'text-red-500'}`}>
+          {trend === 'up' ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+          {trendValue}
+          <span className={`ml-1 font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>dari periode lalu</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className={`p-6 space-y-6 min-h-full ${isDarkMode ? 'bg-[#121216] text-white' : 'bg-gray-50 text-gray-900'}`}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Analitik & Laporan</h1>
-          <p className="text-gray-500">Pantau performa operasional dan pendapatan</p>
+          <h1 className="text-2xl font-black tracking-tight">Analitik & Laporan</h1>
+          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Pantau performa operasional dan pendapatan T-Go.
+          </p>
         </div>
         <div className="flex gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[150px] bg-white">
-              <Calendar className="w-4 h-4 mr-2" />
+            <SelectTrigger className={`w-[150px] border-0 h-9 text-xs font-bold ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white shadow-sm'}`}>
+              <Calendar className="w-3 h-3 mr-2 text-gray-400" />
               <SelectValue placeholder="Pilih Periode" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={isDarkMode ? 'bg-[#1A1A20] border-gray-800 text-white' : ''}>
               <SelectItem value="24h">24 Jam Terakhir</SelectItem>
               <SelectItem value="7d">7 Hari Terakhir</SelectItem>
               <SelectItem value="30d">30 Hari Terakhir</SelectItem>
               <SelectItem value="year">Tahun Ini</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="bg-white">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <Button variant="outline" size="sm" className={`h-9 border-0 ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-white shadow-sm hover:bg-gray-50'}`}>
+            <Download className="w-3 h-3 mr-2" />
+            Export PDF
           </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Pendapatan</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                  Rp {stats.totalRevenue.toLocaleString('id-ID')}
-                </h3>
-              </div>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-              </div>
+      {loading ? (
+        <div className="h-64 flex flex-col items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-600 mb-4" />
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Memuat data analitik...</p>
+        </div>
+      ) : (
+        <>
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <MetricCard 
+                    title="Total Pendapatan" 
+                    value={`Rp ${stats.totalRevenue.toLocaleString('id-ID')}`}
+                    icon={TrendingUp}
+                    colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
+                    trend="up"
+                    trendValue="+12.5%"
+                />
+                <MetricCard 
+                    title="Tiket Terjual" 
+                    value={stats.totalTickets}
+                    icon={Ticket}
+                    colorClass="bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"
+                    trend="up"
+                    trendValue="+8.2%"
+                />
+                <MetricCard 
+                    title="Total Penumpang" 
+                    value={stats.totalPassengers}
+                    icon={Users}
+                    colorClass="bg-purple-100 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400"
+                    trend="up"
+                    trendValue="+15.3%"
+                />
+                <MetricCard 
+                    title="Okupansi Rata-rata" 
+                    value={`${stats.averageOccupancy}%`}
+                    icon={PieChart}
+                    colorClass="bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
+                    trend="down"
+                    trendValue="-2.1%"
+                />
             </div>
-            <div className="flex items-center mt-4 text-sm text-green-600">
-              <ArrowUpRight className="w-4 h-4 mr-1" />
-              <span className="font-medium">+12.5%</span>
-              <span className="text-gray-500 ml-1">dari periode lalu</span>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Tiket</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                  {stats.totalTickets.toLocaleString('id-ID')}
-                </h3>
-              </div>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Ticket className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-            <div className="flex items-center mt-4 text-sm text-blue-600">
-              <ArrowUpRight className="w-4 h-4 mr-1" />
-              <span className="font-medium">+8.2%</span>
-              <span className="text-gray-500 ml-1">dari periode lalu</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Penumpang</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                  {stats.totalPassengers.toLocaleString('id-ID')}
-                </h3>
-              </div>
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="w-5 h-5 text-purple-600" />
-              </div>
-            </div>
-            <div className="flex items-center mt-4 text-sm text-purple-600">
-              <ArrowUpRight className="w-4 h-4 mr-1" />
-              <span className="font-medium">+15.3%</span>
-              <span className="text-gray-500 ml-1">dari periode lalu</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Okupansi Rata-rata</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                  {stats.averageOccupancy}%
-                </h3>
-              </div>
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-orange-600" />
-              </div>
-            </div>
-            <div className="flex items-center mt-4 text-sm text-red-600">
-              <ArrowDownRight className="w-4 h-4 mr-1" />
-              <span className="font-medium">-2.1%</span>
-              <span className="text-gray-500 ml-1">dari periode lalu</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Tren Pendapatan (7 Hari Terakhir)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] flex items-end justify-between gap-2 pt-4">
-              {revenueData.map((data, index) => (
-                <div key={index} className="flex flex-col items-center gap-2 flex-1 group">
-                  <div className="relative w-full flex justify-center">
-                    <div 
-                      className="w-full max-w-[40px] bg-purple-600 rounded-t-lg transition-all duration-300 group-hover:bg-purple-700 group-hover:scale-y-105 origin-bottom"
-                      style={{ height: `${(data.value / 1000000) * 300}px` }}
-                    >
-                      <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded pointer-events-none whitespace-nowrap transition-opacity">
-                        Rp {data.value.toLocaleString('id-ID')}
-                      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Revenue Chart */}
+                <Card className={`lg:col-span-2 border shadow-sm ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
+                <CardHeader>
+                    <CardTitle className={`text-base font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <Activity className="w-4 h-4 text-purple-500" />
+                        Tren Pendapatan (7 Hari Terakhir)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-[300px] flex items-end justify-between gap-2 pt-4 px-2">
+                        {revenueData.length > 0 ? revenueData.map((data, index) => (
+                            <div key={index} className="flex flex-col items-center gap-3 flex-1 group">
+                            <div className="relative w-full flex justify-center h-full items-end">
+                                <div 
+                                className="w-full max-w-[40px] bg-gradient-to-t from-purple-600 to-indigo-500 rounded-t-lg transition-all duration-300 group-hover:from-purple-500 group-hover:to-indigo-400 opacity-80 group-hover:opacity-100 relative"
+                                style={{ height: `${Math.max((data.value / (stats.totalRevenue || 1)) * 1000, 10)}%`, minHeight: '20px' }}
+                                >
+                                     {/* Tooltip */}
+                                     <div className="opacity-0 group-hover:opacity-100 absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg pointer-events-none whitespace-nowrap transition-all transform translate-y-2 group-hover:translate-y-0 shadow-xl z-10 border border-gray-700">
+                                         Rp {data.value.toLocaleString('id-ID')}
+                                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45 border-r border-b border-gray-700"></div>
+                                     </div>
+                                </div>
+                            </div>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{data.day}</span>
+                            </div>
+                        )) : (
+                             <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                                 Belum ada data pendapatan minggu ini
+                             </div>
+                        )}
                     </div>
-                  </div>
-                  <span className="text-sm text-gray-500 font-medium">{data.day}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </CardContent>
+                </Card>
 
-        {/* Top Routes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Rute Terpopuler</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {topRoutes.map((route, index) => (
-                <div key={index} className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-600 shrink-0">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-gray-800">{route.code}</span>
-                      <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        {route.passengers} pax
-                      </span>
+                {/* Top Routes */}
+                <Card className={`border shadow-sm ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
+                <CardHeader>
+                    <CardTitle className={`text-base font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <BarChart3 className="w-4 h-4 text-blue-500" />
+                        Rute Terpopuler
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-6">
+                    {topRoutes.length > 0 ? topRoutes.map((route, index) => (
+                        <div key={index} className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                            #{index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-center mb-1">
+                            <span className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{route.route_code}</span>
+                            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                {route.passengers} pax
+                            </span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">{route.name}</p>
+                            <div className={`mt-2 w-full rounded-full h-1.5 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                            <div 
+                                className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full" 
+                                style={{ width: `${(route.passengers / (topRoutes[0].passengers || 1)) * 100}%` }}
+                            />
+                            </div>
+                        </div>
+                        </div>
+                    )) : (
+                        <div className="text-center py-8 text-gray-500 text-sm">
+                            Belum ada data rute
+                        </div>
+                    )}
                     </div>
-                    <p className="text-sm text-gray-500 truncate">{route.name}</p>
-                    <div className="mt-2 w-full bg-gray-100 rounded-full h-1.5">
-                      <div 
-                        className="bg-purple-600 h-1.5 rounded-full" 
-                        style={{ width: `${(route.passengers / 1500) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                    <Button variant="outline" className={`w-full mt-6 border-0 ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
+                        Lihat Detail
+                    </Button>
+                </CardContent>
+                </Card>
             </div>
-            <Button variant="outline" className="w-full mt-6">
-              Lihat Semua Rute
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+        </>
+      )}
     </div>
   );
 }
