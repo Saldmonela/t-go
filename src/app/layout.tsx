@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-poppins",
+});
 
 export const metadata: Metadata = {
   title: "T-Go",
@@ -22,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${poppins.variable} font-sans`}>
         <Providers>{children}</Providers>
       </body>
     </html>

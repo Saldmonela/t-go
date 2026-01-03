@@ -8,6 +8,7 @@ import { MapPin, ArrowLeft, Clock, CheckCircle2, Navigation, Loader2, Search, Ch
 import { AngkotIcon } from "@/components/AngkotIcon";
 import { toast } from "sonner";
 import BottomNav from "@/components/BottomNav";
+import BookingSuccess from "@/components/BookingSuccess";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useUserProfile, useStops, useFindRoutes, Route } from "@/hooks/useQueries";
@@ -97,13 +98,8 @@ export default function BookingPage() {
       if (error) throw error;
 
       setStep(3);
-      toast.success("Pemesanan Berhasil!");
+      // toast.success("Pemesanan Berhasil!");
       
-      // Redirect after delay
-      setTimeout(() => {
-         router.push("/dashboard/ticket");
-      }, 3000);
-
     } catch (error: any) {
        console.error("Booking error:", error);
        toast.error(error.message || "Gagal melakukan pemesanan");
@@ -337,34 +333,18 @@ export default function BookingPage() {
           </div>
         )}
 
-        {step === 3 && (
-          <div className="py-12 flex flex-col items-center text-center space-y-8 animate-in zoom-in duration-500">
-             <div className="relative">
-                <div className={`w-28 h-28 rounded-[40px] flex items-center justify-center text-emerald-500 shadow-xl ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-                   <CheckCircle2 size={64} strokeWidth={3} className="animate-bounce" />
-                </div>
-                <div className={`absolute -bottom-2 -right-2 w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center border-4 transition-colors ${isDarkMode ? 'bg-gray-800 border-[#121216]' : 'bg-white border-[#FAFBFF]'}`}>
-                   <AngkotIcon className="w-7 h-7 text-[#7B2CBF]" />
-                </div>
-             </div>
-             <div>
-                <h3 className={`text-2xl font-black transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Siap Meluncur!</h3>
-                <p className="text-sm text-gray-400 font-bold mt-2 leading-relaxed max-w-[240px]">
-                    Driver Angkot {selectedRoute?.route_code} sedang menuju titik jemput <span className="text-[#7B2CBF] font-black">{origin}</span>.
-                </p>
-             </div>
-             <div className={`w-full rounded-[36px] p-7 flex items-center justify-between shadow-2xl transition-colors ${isDarkMode ? 'bg-slate-800 text-white' : 'bg-slate-900 text-white'}`}>
-                <div className="text-left">
-                   <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Estimasi Tiba</p>
-                   <p className="text-2xl font-black">4 Menit</p>
-                </div>
-                <div className="h-10 w-[1px] bg-white/10"></div>
-                <div className="text-right">
-                   <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">No. Lambung</p>
-                   <p className="text-2xl font-black text-purple-400">2910</p>
-                </div>
-             </div>
-          </div>
+        {step === 3 && selectedRoute && (
+          <BookingSuccess 
+            routeCode={selectedRoute.route_code}
+            stopName={origin}
+            onViewTicket={() => router.push("/dashboard/ticket")}
+            onClose={() => {
+              setStep(1);
+              setOrigin("");
+              setDestination("");
+              setSelectedRoute(null);
+            }}
+          />
         )}
       </div>
 

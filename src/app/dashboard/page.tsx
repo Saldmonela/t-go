@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore, useAppStore, useThemeStore } from "@/lib/store";
 import BookingModal from "@/components/BookingModal";
-import PaymentModal from "@/components/PaymentModal";
+import BookingSuccess from "@/components/BookingSuccess";
 import { AngkotIcon } from "@/components/AngkotIcon";
 import { 
   Search, 
@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUserProfile, useRoutes, useUserTickets } from "@/hooks/useQueries";
-import { useWalletTransactions } from "@/hooks/useWallet";
+import { useWalletTransactions, useWallet, useProcessPayment } from "@/hooks/useWallet";
 
 interface Route {
   id: string;
@@ -40,7 +40,6 @@ interface Route {
   fare: number;
   color: string;
 }
-
 
 const Dashboard = () => {
   const router = useRouter();
@@ -57,8 +56,13 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRouteForBooking, setSelectedRouteForBooking] = useState<Route | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [bookingData, setBookingData] = useState<any>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Custom Hooks
+  const { data: wallet } = useWallet();
+  const processPayment = useProcessPayment();
   
   // UI State from Reference
   const { isDarkMode } = useThemeStore();
@@ -75,8 +79,6 @@ const Dashboard = () => {
     filterRoutes();
   }, [searchQuery, routes, activeCategory]);
 
-
-
   const filterRoutes = () => {
     let filtered = routes;
 
@@ -91,9 +93,6 @@ const Dashboard = () => {
       );
     }
 
-    // In the future, Category filtering can be added here
-    // if (activeCategory !== 'Angkot T-GO') { ... }
-
     setFilteredRoutes(filtered);
   };
 
@@ -102,37 +101,57 @@ const Dashboard = () => {
     setIsBookingModalOpen(true);
   };
 
-  const handleBookingConfirm = (data: any) => {
+  const handleBookingConfirm = async (data: any) => {
+    if (!selectedRouteForBooking || !user) return;
+
     setBookingData(data);
     setIsBookingModalOpen(false);
-    setIsPaymentModalOpen(true);
-  };
+    setIsProcessingPayment(true);
 
-  const handlePaymentSuccess = async () => {
-    if (!selectedRouteForBooking || !bookingData || !user) return;
+    const totalFare = selectedRouteForBooking.fare * data.passengerCount;
+
+    // Check balance first
+    if ((wallet?.balance || 0) < totalFare) {
+      toast.error("Saldo T-GoPay tidak mencukupi. Silakan isi ulang saldo Anda.");
+      setIsProcessingPayment(false);
+      return;
+    }
 
     try {
       const qrCode = `TGO-${Date.now()}-${user.id.substring(0, 8)}`;
 
-      const { error } = await supabase.from("tickets").insert({
-        user_id: user.id,
-        route_id: selectedRouteForBooking.id,
-        start_point: bookingData.startPoint,
-        end_point: bookingData.endPoint,
-        passenger_count: bookingData.passengerCount,
-        total_fare: selectedRouteForBooking.fare * bookingData.passengerCount,
-        qr_code: qrCode,
-        status: "active",
-        travel_date: bookingData.travelDate,
+      // 1. Process Wallet Payment
+      const paymentResult = await processPayment.mutateAsync({
+        amount: totalFare,
+        description: `Pembayaran tiket rute ${selectedRouteForBooking.route_code}`,
+        referenceType: 'ticket'
       });
 
-      if (error) throw error;
+      if (!paymentResult.success) {
+        throw new Error("Gagal mengolah pembayaran");
+      }
 
-      toast.success("Pembayaran berhasil! Tiket Anda sudah tersedia.");
-      router.push("/dashboard/ticket");
-    } catch (error) {
-      console.error("Error creating ticket:", error);
-      toast.error("Gagal membuat tiket");
+      // 2. Create Ticket with reference to transaction
+      const { error: ticketError } = await supabase.from("tickets").insert({
+        user_id: user.id,
+        route_id: selectedRouteForBooking.id,
+        start_point: data.startPoint,
+        end_point: data.endPoint,
+        passenger_count: data.passengerCount,
+        total_fare: totalFare,
+        qr_code: qrCode,
+        status: "active",
+        travel_date: data.travelDate,
+      });
+
+      if (ticketError) throw ticketError;
+
+      setShowSuccess(true);
+    } catch (error: any) {
+      console.error("Booking error:", error);
+      toast.error(error.message || "Gagal melakukan pemesanan");
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -142,7 +161,7 @@ const Dashboard = () => {
   const activities = useMemo(() => {
     const combined = [];
 
-    // 1. System Welcome (Always there)
+    // 1. System Welcome
     combined.push({
       id: 'welcome',
       title: 'Selamat Datang di T-GO!',
@@ -153,18 +172,18 @@ const Dashboard = () => {
       isRead: true
     });
 
-    // 2. System Promo (Static for now)
+    // 2. System Promo
     combined.push({
       id: 'promo-1',
       title: 'Promo Spesial T-GO',
       desc: 'Diskon 50% untuk rute Karawaci hari ini. Cek tab Promo sekarang!',
       time: 'Hari ini',
-      timestamp: Date.now() - 3600000, // 1 hour ago
+      timestamp: Date.now() - 3600000,
       icon: <Zap size={20} className="text-yellow-500" />,
       isRead: false
     });
 
-    // 3. Transactions (Topup & Payment)
+    // 3. Transactions
     transactions.forEach(tx => {
       combined.push({
         id: `tx-${tx.id}`,
@@ -204,7 +223,6 @@ const Dashboard = () => {
     );
   }
 
-  // Helper for names - use profile data first, fallback to user metadata
   const displayName = profile?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || "User";
   const firstName = displayName.split(' ')[0];
   const lastName = displayName.split(' ').slice(1).join(' ');
@@ -212,13 +230,13 @@ const Dashboard = () => {
   return (
     <div className={`pb-32 animate-in fade-in duration-700 transition-colors min-h-full ${isDarkMode ? 'bg-[#0F0F13]' : 'bg-[#FDFDFF]'}`}>
       
-      {/* Dynamic Background Glows */}
+      {/* Background Glows */}
       <div className="absolute top-0 left-0 right-0 h-[450px] overflow-hidden pointer-events-none">
         <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[120px] opacity-15 ${isDarkMode ? 'bg-purple-900' : 'bg-[#7B2CBF]'}`}></div>
         <div className={`absolute top-20 -right-24 w-72 h-72 rounded-full blur-[100px] opacity-10 ${isDarkMode ? 'bg-blue-900' : 'bg-purple-200'}`}></div>
       </div>
 
-      {/* Header Profile Section */}
+      {/* Header Profile */}
       <div className="relative z-10 px-6 pt-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div onClick={() => router.push('/dashboard/profile')} className="cursor-pointer group">
@@ -247,7 +265,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Hero Greeting */}
       <div className="relative z-10 px-6 mt-10">
         <h1 className={`text-4xl font-black tracking-tighter leading-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Hello <span className="text-[#7B2CBF]">{firstName}</span>,
@@ -255,12 +272,9 @@ const Dashboard = () => {
         <p className={`text-lg font-medium opacity-60 mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Let's do to-go!</p>
       </div>
 
-      {/* T-GO Signature Search Bar */}
       <div className="relative z-10 px-6 mt-8">
         <div className="flex items-center gap-3">
-          <div 
-            className={`flex-1 flex items-center gap-4 p-4 rounded-[30px] shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#7B2CBF]/20 ${isDarkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-white border border-gray-100'}`}
-          >
+          <div className={`flex-1 flex items-center gap-4 p-4 rounded-[30px] shadow-sm transition-all focus-within:ring-2 focus-within:ring-[#7B2CBF]/20 ${isDarkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-white border border-gray-100'}`}>
             <div className="w-11 h-11 rounded-full bg-[#7B2CBF] flex items-center justify-center text-white shadow-lg shadow-purple-900/20 shrink-0">
               <Navigation size={20} strokeWidth={2.5} />
             </div>
@@ -281,7 +295,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Transport Category Slider */}
       <div className="relative z-10 mt-8">
         <div className="flex overflow-x-auto no-scrollbar gap-3 px-6 pb-2">
           {[
@@ -307,7 +320,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Promo & Tickets Horizontal Carousel */}
       <div className="relative z-10 mt-10">
         <div className="flex items-center justify-between px-7 mb-4">
           <h3 className={`text-xs font-black uppercase tracking-[2.5px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Diskon & Promo</h3>
@@ -339,7 +351,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Nearby Angkot Section */}
       <div className="relative z-10 mt-8 px-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -364,11 +375,8 @@ const Dashboard = () => {
                 onClick={() => handleBookRoute(route)}
                 className={`rounded-[32px] p-5 flex items-center justify-between border transition-all active:scale-[0.98] cursor-pointer group relative overflow-hidden ${isDarkMode ? 'bg-gray-800/40 border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}
               >
-                {/* Left Accent Line */}
                 <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: route.color || '#7B2CBF' }}></div>
-
                 <div className="flex flex-col gap-2 flex-1 min-w-0 pl-2">
-                  {/* Route Badge & Points */}
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-1 rounded-lg text-[10px] font-black text-white shadow-sm" style={{ backgroundColor: route.color || '#7B2CBF' }}>
                       {route.route_code}
@@ -378,14 +386,10 @@ const Dashboard = () => {
                       <span>{route.start_point}</span>
                     </div>
                   </div>
-
-                  {/* Route Name - Now allowed to wrap nicely */}
                   <h4 className={`font-black text-[15px] leading-tight tracking-tight transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                     {route.name}
                   </h4>
                 </div>
-
-                {/* Right Side: Price & Status */}
                 <div className="flex flex-col items-end gap-1.5 ml-4 flex-shrink-0">
                   <p className="text-base font-black text-[#7B2CBF] whitespace-nowrap">
                     Rp {route.fare.toLocaleString('id-ID')}
@@ -401,7 +405,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Local Info Section */}
       <div className="relative z-10 px-6 mt-10">
         <div className={`p-6 rounded-[40px] border flex items-center gap-5 transition-colors ${isDarkMode ? 'bg-blue-900/10 border-blue-900/20' : 'bg-blue-50 border-blue-100'}`}>
            <div className="w-12 h-12 bg-blue-500 rounded-[20px] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
@@ -414,34 +417,20 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Notification Drawer Overlay */}
       {showNotifications && (
         <div className="fixed inset-0 z-[100] animate-in fade-in duration-300">
-          <div 
-            onClick={() => setShowNotifications(false)}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          ></div>
+          <div onClick={() => setShowNotifications(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
           <div className={`absolute bottom-0 left-0 right-0 max-w-[430px] mx-auto h-[80vh] rounded-t-[40px] shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-500 ${isDarkMode ? 'bg-[#121216]' : 'bg-white'}`}>
             <div className={`p-6 pt-12 flex items-center justify-between border-b transition-colors border-gray-100 dark:border-gray-800 ${isDarkMode ? 'bg-[#121216]' : 'bg-white'}`}>
               <h2 className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Riwayat Aktivitas</h2>
-              <button 
-                onClick={() => setShowNotifications(false)}
-                className={`p-2 rounded-full ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}
-              >
-                <X size={20} />
-              </button>
+              <button onClick={() => setShowNotifications(false)} className={`p-2 rounded-full ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}><X size={20} /></button>
             </div>
-            
             <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6">
               {activities.length > 0 ? (
                 activities.map((item) => (
                   <div key={item.id} className="flex gap-4 relative group">
-                    {!item.isRead && (
-                      <div className="absolute -left-2 top-2 w-2 h-2 bg-[#7B2CBF] rounded-full ring-4 ring-[#7B2CBF]/10"></div>
-                    )}
-                    <div className={`w-12 h-12 min-w-[48px] rounded-2xl flex items-center justify-center shadow-sm transition-transform group-active:scale-95 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-100'}`}>
-                      {item.icon}
-                    </div>
+                    {!item.isRead && (<div className="absolute -left-2 top-2 w-2 h-2 bg-[#7B2CBF] rounded-full ring-4 ring-[#7B2CBF]/10"></div>)}
+                    <div className={`w-12 h-12 min-w-[48px] rounded-2xl flex items-center justify-center shadow-sm transition-transform group-active:scale-95 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-100'}`}>{item.icon}</div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <h4 className={`text-sm font-black transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{item.title}</h4>
@@ -453,14 +442,11 @@ const Dashboard = () => {
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-50 text-gray-300'}`}>
-                    <Bell size={32} />
-                  </div>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-50 text-gray-300'}`}><Bell size={32} /></div>
                   <p className="text-gray-400 text-sm font-bold">Belum ada aktifitas sepertinya...</p>
                 </div>
               )}
             </div>
-
             <div className="p-6 border-t transition-colors border-gray-100 dark:border-gray-800">
               <button 
                 onClick={() => setShowNotifications(false)}
@@ -473,7 +459,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Modals */}
       <BookingModal
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
@@ -481,16 +466,34 @@ const Dashboard = () => {
         onConfirm={handleBookingConfirm}
       />
 
-      <PaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        amount={
-          selectedRouteForBooking
-            ? selectedRouteForBooking.fare * (bookingData?.passengerCount || 1)
-            : 0
-        }
-        onSuccess={handlePaymentSuccess}
-      />
+      {isProcessingPayment && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="text-center bg-white dark:bg-gray-900 p-8 rounded-[40px] shadow-2xl scale-in-95 animate-in">
+            <div className="relative w-20 h-20 mx-auto mb-6">
+              <div className="absolute inset-0 border-4 border-purple-500/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Wallet className="text-purple-500 w-8 h-8" />
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">Memproses Tiket</h3>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Duduk santai, T-GoPay sedang dipotong otomatis...</p>
+          </div>
+        </div>
+      )}
+
+      {showSuccess && selectedRouteForBooking && bookingData && (
+        <BookingSuccess 
+          routeCode={selectedRouteForBooking.route_code}
+          stopName={bookingData.startPoint}
+          onViewTicket={() => router.push("/dashboard/ticket")}
+          onClose={() => {
+            setShowSuccess(false);
+            setSelectedRouteForBooking(null);
+            setBookingData(null);
+          }}
+        />
+      )}
     </div>
   );
 };

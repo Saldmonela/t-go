@@ -5,7 +5,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import { Users, Calendar, ArrowRight, ArrowLeft } from "lucide-react";
+import { Users, Calendar, ArrowRight, ArrowLeft, Wallet } from "lucide-react";
 import { AngkotIcon } from "@/components/AngkotIcon";
 import { useThemeStore } from "@/lib/store";
 import { useRouteStops } from "@/hooks/useQueries";
@@ -192,8 +192,8 @@ const BookingModal = ({ isOpen, onClose, route, onConfirm }: BookingModalProps) 
               onClick={handleConfirm}
               className="w-full py-4 bg-[#7B2CBF] text-white rounded-[24px] font-black shadow-xl shadow-purple-900/20 active:scale-95 transition-all flex items-center justify-center gap-3"
            >
-              Lanjut Pembayaran
-              <ArrowRight size={18} />
+              Konfirmasi & Bayar Sekarang
+              <Wallet size={18} />
            </button>
         </div>
 

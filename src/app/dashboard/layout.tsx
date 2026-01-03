@@ -26,7 +26,7 @@ export default function DashboardLayout({
     <div
       className={`h-[100dvh] flex justify-center items-center transition-colors duration-500 ${
         isDarkMode ? "bg-[#08080A]" : "bg-[#F2F4F7]"
-      } md:p-4 font-['Poppins']`}
+      } md:p-4`}
     >
       {/* Device Frame Simulation */}
       <div

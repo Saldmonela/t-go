@@ -57,8 +57,8 @@
   --radius-sm: calc(0.75rem - 4px);
 
   /* Font Families */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-poppins);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
@@ -244,12 +244,24 @@
   border-color: hsl(var(--border));
 }
 
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-poppins), system-ui, sans-serif;
+}
+
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-html {
-  scroll-behavior: smooth;
+/* Ensure form elements use Poppins */
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
 }
