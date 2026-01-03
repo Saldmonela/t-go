@@ -24,13 +24,13 @@ export default function DashboardLayout({
 
   return (
     <div
-      className={`min-h-screen flex justify-center items-center transition-colors duration-500 ${
+      className={`h-[100dvh] flex justify-center items-center transition-colors duration-500 ${
         isDarkMode ? "bg-[#08080A]" : "bg-[#F2F4F7]"
       } md:p-4 font-['Poppins']`}
     >
       {/* Device Frame Simulation */}
       <div
-        className={`relative w-full max-w-[430px] h-screen md:h-[90vh] md:rounded-[48px] overflow-hidden flex flex-col md:border-8 transition-all duration-500 ${
+        className={`relative w-full max-w-[430px] h-[100dvh] md:h-[90vh] md:rounded-[48px] overflow-hidden flex flex-col md:border-8 transition-all duration-500 ${
           isDarkMode
             ? " border-slate-800"
             : "bg-white border-white md:border-slate-900 shadow-2xl"
