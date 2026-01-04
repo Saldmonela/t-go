@@ -7,20 +7,20 @@ import { useAuthStore, useAppStore, useThemeStore } from "@/lib/store";
 import BookingModal from "@/components/BookingModal";
 import BookingSuccess from "@/components/BookingSuccess";
 import { AngkotIcon } from "@/components/AngkotIcon";
-import { 
-  Search, 
-  Ticket, 
-  Map as MapIcon, 
-  Navigation, 
-  Bell, 
-  ChevronRight, 
-  MapPin, 
-  Zap, 
-  Star, 
-  QrCode, 
-  Train, 
-  Bus, 
-  Info, 
+import {
+  Search,
+  Ticket,
+  Map as MapIcon,
+  Navigation,
+  Bell,
+  ChevronRight,
+  MapPin,
+  Zap,
+  Star,
+  QrCode,
+  Train,
+  Bus,
+  Info,
   X,
   AlertCircle,
   Loader2,
@@ -45,13 +45,13 @@ const Dashboard = () => {
   const router = useRouter();
   const { user } = useAuthStore();
   const { setSelectedRoute } = useAppStore();
-  
+
   // Use TanStack Query hooks
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const { data: routes = [], isLoading: routesLoading } = useRoutes();
   const { data: tickets = [] } = useUserTickets();
   const { data: transactions = [] } = useWalletTransactions(10);
-  
+
   const [filteredRoutes, setFilteredRoutes] = useState<Route[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRouteForBooking, setSelectedRouteForBooking] = useState<Route | null>(null);
@@ -59,11 +59,11 @@ const Dashboard = () => {
   const [bookingData, setBookingData] = useState<any>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  
+
   // Custom Hooks
   const { data: wallet } = useWallet();
   const processPayment = useProcessPayment();
-  
+
   // UI State from Reference
   const { isDarkMode } = useThemeStore();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -229,7 +229,7 @@ const Dashboard = () => {
 
   return (
     <div className={`pb-32 animate-in fade-in duration-700 transition-colors min-h-full ${isDarkMode ? 'bg-[#0F0F13]' : 'bg-[#FDFDFF]'}`}>
-      
+
       {/* Background Glows */}
       <div className="absolute top-0 left-0 right-0 h-[450px] overflow-hidden pointer-events-none">
         <div className={`absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[120px] opacity-15 ${isDarkMode ? 'bg-purple-900' : 'bg-[#7B2CBF]'}`}></div>
@@ -241,9 +241,9 @@ const Dashboard = () => {
         <div className="flex items-center gap-3">
           <div onClick={() => router.push('/dashboard/profile')} className="cursor-pointer group">
             <div className="relative">
-              <img 
-                src={user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'User'}`} 
-                alt="Profile" 
+              <img
+                src={user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'User'}`}
+                alt="Profile"
                 className={`w-12 h-12 rounded-full object-cover border-2 shadow-sm transition-transform group-active:scale-90 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-white'}`}
               />
               <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#FDFDFF] dark:border-[#0F0F13] rounded-full"></div>
@@ -256,7 +256,7 @@ const Dashboard = () => {
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Gold Explorer • Tangerang</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setShowNotifications(true)}
           className={`p-3 rounded-full transition-all active:scale-90 relative ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-400 shadow-sm border border-gray-100 hover:bg-purple-50 hover:text-purple-600'}`}
         >
@@ -279,9 +279,9 @@ const Dashboard = () => {
               <Navigation size={20} strokeWidth={2.5} />
             </div>
             <div className="flex flex-col flex-1">
-              <input 
-                type="text" 
-                placeholder="Find a route..." 
+              <input
+                type="text"
+                placeholder="Find a route..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full bg-transparent border-none p-0 text-sm font-black tracking-tight focus:outline-none placeholder:font-medium placeholder:text-gray-400 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}
@@ -304,14 +304,13 @@ const Dashboard = () => {
             { icon: <Navigation size={20} />, label: 'Feeder', id: 'Feeder' },
             { icon: <Star size={20} />, label: 'Favorite', id: 'Favorite' },
           ].map((cat, i) => (
-            <button 
-              key={i} 
+            <button
+              key={i}
               onClick={() => setActiveCategory(cat.id)}
-              className={`flex items-center gap-3 px-6 py-4 rounded-full whitespace-nowrap transition-all shadow-sm font-black text-[11px] uppercase tracking-wider ${
-                activeCategory === cat.id
-                  ? 'bg-[#7B2CBF] text-white shadow-lg shadow-purple-900/20' 
-                  : (isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-500 border border-gray-50')
-              }`}
+              className={`flex items-center gap-3 px-6 py-4 rounded-full whitespace-nowrap transition-all shadow-sm font-black text-[11px] uppercase tracking-wider ${activeCategory === cat.id
+                ? 'bg-[#7B2CBF] text-white shadow-lg shadow-purple-900/20'
+                : (isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-500 border border-gray-50')
+                }`}
             >
               {activeCategory === cat.id ? React.cloneElement(cat.icon as React.ReactElement<{ className?: string }>, { className: "w-5 h-5 text-white" }) : cat.icon}
               {cat.label}
@@ -331,8 +330,8 @@ const Dashboard = () => {
             { title: 'Cashback 5.000', subtitle: 'Rute Cimone - Poris', color: 'from-[#5A189A] to-[#7B2CBF]', icon: <Star /> },
             { title: 'Gratis Trip', subtitle: 'Ajak Teman Naik Angkot', color: 'from-[#3C096C] to-[#5A189A]', icon: <Ticket /> },
           ].map((promo, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={`min-w-[290px] h-38 rounded-[40px] p-7 relative overflow-hidden flex flex-col justify-center bg-gradient-to-br shadow-xl shadow-purple-900/10 transition-transform active:scale-95 cursor-pointer ${promo.color}`}
             >
               <div className="absolute -top-4 -right-4 opacity-10 rotate-12">
@@ -354,14 +353,14 @@ const Dashboard = () => {
       <div className="relative z-10 mt-8 px-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-             <div className="w-1.5 h-6 bg-[#7B2CBF] rounded-full"></div>
-             <h3 className={`text-xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Angkot Terdekat</h3>
+            <div className="w-1.5 h-6 bg-[#7B2CBF] rounded-full"></div>
+            <h3 className={`text-xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Angkot Terdekat</h3>
           </div>
           <button className={`p-2.5 rounded-full transition-all active:scale-90 ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-50 text-gray-400'}`}>
             <Search size={18} />
           </button>
         </div>
-        
+
         <div className="space-y-4">
           {filteredRoutes.length === 0 ? (
             <div className="text-center py-10 opacity-50">
@@ -370,8 +369,8 @@ const Dashboard = () => {
             </div>
           ) : (
             filteredRoutes.map((route) => (
-              <div 
-                key={route.id} 
+              <div
+                key={route.id}
                 onClick={() => handleBookRoute(route)}
                 className={`rounded-[32px] p-5 flex items-center justify-between border transition-all active:scale-[0.98] cursor-pointer group relative overflow-hidden ${isDarkMode ? 'bg-gray-800/40 border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}
               >
@@ -407,13 +406,13 @@ const Dashboard = () => {
 
       <div className="relative z-10 px-6 mt-10">
         <div className={`p-6 rounded-[40px] border flex items-center gap-5 transition-colors ${isDarkMode ? 'bg-blue-900/10 border-blue-900/20' : 'bg-blue-50 border-blue-100'}`}>
-           <div className="w-12 h-12 bg-blue-500 rounded-[20px] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-              <Info size={24} />
-           </div>
-           <div className="flex-1">
-              <p className={`text-xs font-black ${isDarkMode ? 'text-blue-400' : 'text-blue-900'}`}>Info Lalu Lintas</p>
-              <p className="text-[10px] text-blue-400/80 font-bold mt-1 uppercase tracking-wider">Jl. Daan Mogot arah Poris lancar jaya hari ini!</p>
-           </div>
+          <div className="w-12 h-12 bg-blue-500 rounded-[20px] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+            <Info size={24} />
+          </div>
+          <div className="flex-1">
+            <p className={`text-xs font-black ${isDarkMode ? 'text-blue-400' : 'text-blue-900'}`}>Info Lalu Lintas</p>
+            <p className="text-[10px] text-blue-400/80 font-bold mt-1 uppercase tracking-wider">Jl. Daan Mogot arah Poris lancar jaya hari ini!</p>
+          </div>
         </div>
       </div>
 
@@ -448,7 +447,7 @@ const Dashboard = () => {
               )}
             </div>
             <div className="p-6 border-t transition-colors border-gray-100 dark:border-gray-800">
-              <button 
+              <button
                 onClick={() => setShowNotifications(false)}
                 className="w-full py-4 bg-[#7B2CBF] text-white rounded-2xl font-black text-sm uppercase tracking-[2px] shadow-lg shadow-purple-900/20 active:scale-95 transition-transform"
               >
@@ -483,7 +482,7 @@ const Dashboard = () => {
       )}
 
       {showSuccess && selectedRouteForBooking && bookingData && (
-        <BookingSuccess 
+        <BookingSuccess
           routeCode={selectedRouteForBooking.route_code}
           stopName={bookingData.startPoint}
           onViewTicket={() => router.push("/dashboard/ticket")}
