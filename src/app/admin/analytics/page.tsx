@@ -168,9 +168,8 @@ export default function AdminAnalyticsPage() {
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Revenue Chart */}
-                <Card className={`lg:col-span-2 border shadow-sm ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
+            {/* Revenue Chart - Full Width */}
+            <Card className={`border shadow-sm ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
                 <CardHeader>
                     <CardTitle className={`text-base font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         <Activity className="w-4 h-4 text-purple-500" />
@@ -181,12 +180,12 @@ export default function AdminAnalyticsPage() {
                     {(() => {
                       const maxValue = revenueData.length > 0 ? Math.max(...revenueData.map(d => d.value)) : 0;
                       return (
-                        <div className="h-[300px] flex items-end justify-between gap-2 pt-4 px-2">
+                        <div className="h-[400px] flex items-end justify-between gap-2 pt-4 px-2">
                             {revenueData.length > 0 ? revenueData.map((data, index) => (
                                 <div key={index} className="flex flex-col items-center gap-3 flex-1 group">
-                                <div className="relative w-full flex justify-center h-[250px] items-end">
+                                <div className="relative w-full flex justify-center h-[350px] items-end">
                                     <div 
-                                    className="w-full max-w-[40px] bg-gradient-to-t from-purple-600 to-indigo-500 rounded-t-lg transition-all duration-300 group-hover:from-purple-500 group-hover:to-indigo-400 opacity-80 group-hover:opacity-100 relative"
+                                    className="w-full max-w-[50px] bg-gradient-to-t from-purple-600 to-indigo-500 rounded-t-lg transition-all duration-300 group-hover:from-purple-500 group-hover:to-indigo-400 opacity-80 group-hover:opacity-100 relative"
                                     style={{ height: `${maxValue > 0 ? Math.max((data.value / maxValue) * 100, 5) : 5}%` }}
                                     >
                                          {/* Tooltip */}
@@ -207,10 +206,10 @@ export default function AdminAnalyticsPage() {
                       );
                     })()}
                 </CardContent>
-                </Card>
+            </Card>
 
-                {/* Top Routes */}
-                <Card className={`border shadow-sm ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
+            {/* Top Routes - Below Chart */}
+            <Card className={`border shadow-sm ${isDarkMode ? 'bg-[#1A1A20] border-gray-800' : 'bg-white border-gray-100'}`}>
                 <CardHeader>
                     <CardTitle className={`text-base font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         <BarChart3 className="w-4 h-4 text-blue-500" />
@@ -218,30 +217,32 @@ export default function AdminAnalyticsPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                     {topRoutes.length > 0 ? topRoutes.map((route, index) => (
-                        <div key={index} className="flex items-center gap-4">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
-                            #{index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-center mb-1">
-                            <span className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{route.route_code}</span>
-                            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                {route.passengers} pax
-                            </span>
+                        <div key={index} className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isDarkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600'}`}>
+                                    #{index + 1}
+                                </div>
+                                <div>
+                                    <span className={`font-bold text-sm block ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{route.route_code}</span>
+                                    <p className="text-xs text-gray-500 truncate max-w-[120px]">{route.name}</p>
+                                </div>
                             </div>
-                            <p className="text-xs text-gray-500 truncate">{route.name}</p>
-                            <div className={`mt-2 w-full rounded-full h-1.5 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                            <div 
-                                className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full" 
-                                style={{ width: `${(route.passengers / (topRoutes[0].passengers || 1)) * 100}%` }}
-                            />
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                    {route.passengers} pax
+                                </span>
+                                <div className={`flex-1 mx-3 rounded-full h-1.5 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                    <div 
+                                        className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full" 
+                                        style={{ width: `${(route.passengers / (topRoutes[0].passengers || 1)) * 100}%` }}
+                                    />
+                                </div>
                             </div>
-                        </div>
                         </div>
                     )) : (
-                        <div className="text-center py-8 text-gray-500 text-sm">
+                        <div className="col-span-full text-center py-8 text-gray-500 text-sm">
                             Belum ada data rute
                         </div>
                     )}
@@ -250,8 +251,7 @@ export default function AdminAnalyticsPage() {
                         Lihat Detail
                     </Button>
                 </CardContent>
-                </Card>
-            </div>
+            </Card>
         </>
       )}
     </div>
